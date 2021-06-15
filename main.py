@@ -1,4 +1,6 @@
 """
+Text below is copied from "Using a Control Program in Maxwell 2D and 3D
+Transient Solutions" in Maxwell Help.
 The process can be summarized as:
 1. The transient solver reads control parameters from user.ctl.
 2. The transient solver solves the current time step.
@@ -13,12 +15,13 @@ status 0 or fails with exit status non-zero.
 python version is 3.7.8 in ANSYS Electronics 2021R1
 可以使用numpy、scipy和matplotlib
 """
-import argparse
 import logging
+import os
+import sys
 from datetime import datetime
-import numpy as np
 from pathlib import Path
-import os, sys
+
+import numpy as np
 
 log_path = Path.home() / 'Desktop/controlProgram'  # log文件夹放在桌面
 log_path.mkdir(parents=True, exist_ok=True)  # 建立log文件夹，如果不存在就新建
@@ -141,14 +144,6 @@ def load_solution_file(solution_filenname='solution.ctl'):
 
 # 运行
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='Say hello')
-    # parser.add_argument('name', help='your name, enter it',type=str)
-    parser.add_argument('-configure', help='configuration', type=str)
-    parser.add_argument('-post',
-                        help='Call after last time step for post processing',
-                        type=str)
-    args = parser.parse_args()
-    logger.info(args.configure)
     solution = load_solution_file()
     write_user_file(solution)
     # step 6. Return to the transient solver if the control program succeeds
