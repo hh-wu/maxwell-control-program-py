@@ -23,32 +23,6 @@ from pathlib import Path
 
 import numpy as np
 
-log_path = Path.home() / 'Desktop/controlProgram'  # log文件夹放在桌面
-log_path.mkdir(parents=True, exist_ok=True)  # 建立log文件夹，如果不存在就新建
-logger = logging.getLogger()  # 以下几行都是logger输出参数
-hdlr = logging.FileHandler(
-    log_path / datetime.now().strftime('control-%Y-%m-%d.log'))
-formatter = logging.Formatter('%(asctime)s %(levelname)s %(message)s')
-hdlr.setFormatter(formatter)
-logger.addHandler(hdlr)
-logger.setLevel(logging.DEBUG)
-try:
-    user_paths = os.environ['PYTHONPATH'].split(os.pathsep)
-except KeyError:
-    user_paths = []
-logger.info(f'{os.path.dirname(sys.executable)}')
-"""
-下面是激励的输出模板，不要随便修改
-参数：
-name:
-windingSrc: 绕组数值，可以是电压源或者电流源，仅仅是数值，单位为A（电压源）或者V（电流源）
-windingR:   绕组电阻，单位为欧姆（Ohm），电压源时使用
-windingL:   绕组端部电感，单位为亨利（H），电压源时使用
-"""
-excitation_template = 'windingSrc {name} {windingSrc}\n' \
-                      'windingR {name} {windingR}\n' \
-                      'windingL {name} {windingL}\n'
-
 """
 下面是自定义参数，全局变量，在程序运行时使用。
 """
@@ -62,8 +36,44 @@ pole = 2
 speed = 120000  # speed unit is RPM
 freq = pole / 2 * speed / 60  # freq = pole pair * (speed in rpm) / 60
 
+"""
+log 参数，一般不需要修改
+"""
+log_path = Path.home() / 'Desktop/controlProgram'  # log文件夹放在桌面
+log_path.mkdir(parents=True, exist_ok=True)  # 建立log文件夹，如果不存在就新建
+logger = logging.getLogger()  # 以下几行都是logger输出参数
+hdlr = logging.FileHandler(
+    log_path / datetime.now().strftime('control-%Y-%m-%d.log'))
+formatter = logging.Formatter('%(asctime)s %(levelname)s %(message)s')
+hdlr.setFormatter(formatter)
+logger.addHandler(hdlr)
+logger.setLevel(logging.DEBUG)
+# logger.info(f'{os.path.dirname(sys.executable)}')
 
-class Winding:
+"""
+下面是激励的输出模板，不要随便修改
+参数：
+name:
+windingSrc: 绕组数值，可以是电压源或者电流源，仅仅是数值，单位为A（电压源）或者V（电流源）
+windingR:   绕组电阻，单位为欧姆（Ohm），电压源时使用
+windingL:   绕组端部电感，单位为亨利（H），电压源时使用
+"""
+excitation_template = 'windingSrc {name} {windingSrc}\n' \
+                      'windingR {name} {windingR}\n' \
+                      'windingL {name} {windingL}\n'
+
+
+class Winding(object):
+    """绕组数据结构
+
+    Attributes:
+        src: 激励
+        R: 电阻
+        L: 端部电感
+        name: 名称
+
+    """
+
     def __init__(self, src, R, L, name):
         self.name = name
         self.src = src
@@ -85,13 +95,13 @@ def write_user_file(sol, user_file_name='user.ctl', mode='w'):
     :param mode: 写入模式，不要随意修改，默认为'w'
     :return: 空
     """
-    output = 'begin_data\n'
+    output = ['begin_data\n']
 
     # 获取时间
     current_timestamp = float(sol['time'])
 
     # 添加时间
-    output += f'time {current_timestamp}\n'
+    output.append(f'time {current_timestamp}\n')
     if current_timestamp != -1:
         # 获取每个绕组的名称
         winding_names = sol['windingEmf'].keys()
@@ -102,14 +112,14 @@ def write_user_file(sol, user_file_name='user.ctl', mode='w'):
             excitation = imax * np.sin(
                 2 * np.pi * freq * current_timestamp - 2 * np.pi / num_phases * phase)
             # 将每相激励写入output
-            output += str(Winding(src=excitation, R=0.1, L=0, name=name))
-    output += 'end_data\n'
+            output.append(str(Winding(src=excitation, R=0.1, L=0, name=name)))
+    output.append('end_data\n')
 
     # 将输出写入控制文件供求解器读取
     with open(user_file_name, mode) as user_file:
-        user_file.write(output)
+        user_file.write(''.join(output))
 
-    logger.info(output)
+    logger.info(''.join(output))
 
 
 def load_solution_file(solution_filenname='solution.ctl'):
@@ -145,8 +155,6 @@ def load_solution_file(solution_filenname='solution.ctl'):
     else:
         logger.info('solution file does not exist, create user.ctl')
         sol['time'] = -1
-        # with open('user.ctl', 'w') as f:
-        #     f.write('begin_data\nend_data\n')
     return sol
 
 
