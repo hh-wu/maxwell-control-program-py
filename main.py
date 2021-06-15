@@ -52,8 +52,8 @@ excitation_template = 'windingSrc {name} {windingSrc}\n' \
 """
 下面是自定义参数，全局变量，在程序运行时使用。
 """
-current_density = 8  # unit is A/mm2
-slot_size = 10  # unit is mm2
+current_density = 10  # unit is A/mm2
+slot_size = 100  # unit is mm2
 fill_factor = 0.5
 turns = 29
 irms = current_density * slot_size * fill_factor / turns
@@ -61,7 +61,20 @@ imax = irms * np.sqrt(2)
 pole = 2
 speed = 120000  # speed unit is RPM
 freq = pole / 2 * speed / 60  # freq = pole pair * (speed in rpm) / 60
-phase = 3
+
+
+class Winding:
+    def __init__(self, src, R, L, name):
+        self.name = name
+        self.src = src
+        self.R = R
+        self.L = L
+
+    def __str__(self):
+        return excitation_template.format(name=self.name,
+                                          windingSrc=self.src,
+                                          windingR=self.R,
+                                          windingL=self.L)
 
 
 def write_user_file(sol, user_file_name='user.ctl', mode='w'):
@@ -75,26 +88,21 @@ def write_user_file(sol, user_file_name='user.ctl', mode='w'):
     output = 'begin_data\n'
 
     # 获取时间
-    t = float(sol['time'])
+    current_timestamp = float(sol['time'])
 
     # 添加时间
-    output += f'time {t}\n'
-    if t != -1:
+    output += f'time {current_timestamp}\n'
+    if current_timestamp != -1:
         # 获取每个绕组的名称
         winding_names = sol['windingEmf'].keys()
 
-        # 每相激励的计算
-        excitations = [
-            imax * np.sin(2 * np.pi * freq * t - phase_angle * 2 / 3 * np.pi)
-            for
-            phase_angle in range(phase)]
-
-        # 将每相激励写入output
-        for name, excitation in zip(winding_names, excitations):
-            output += excitation_template.format(name=name,
-                                                 windingSrc=excitation,
-                                                 windingR=0.1,
-                                                 windingL=0.001)
+        num_phases = len(winding_names)
+        for phase, name in enumerate(winding_names):
+            # 每相激励的计算
+            excitation = imax * np.sin(
+                2 * np.pi * freq * current_timestamp - 2 * np.pi / num_phases * phase)
+            # 将每相激励写入output
+            output += str(Winding(src=excitation, R=0.1, L=0, name=name))
     output += 'end_data\n'
 
     # 将输出写入控制文件供求解器读取
